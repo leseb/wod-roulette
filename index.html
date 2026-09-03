@@ -254,26 +254,33 @@ body::before {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-
-.wod-date {
-  font-size: 14px;
-  color: #777;
-  margin-bottom: 20px;
-  font-weight: 500;
+.badge-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
-.wod-date::before {
-  content: '';
-  display: block;
-  width: 3px;
-  height: 14px;
-  border-radius: 2px;
-  background: #333;
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid #222;
+  border-radius: 9px;
+  background: #151518;
+  color: #888;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
-.card.hyrox-card .wod-date::before { background: #ff6b35; }
-.card.savage-card .wod-date::before { background: #8b5cf6; }
+.copy-btn:active { transform: scale(0.92); }
+.copy-btn svg { width: 13px; height: 13px; }
+.copy-btn.copied {
+  background: rgba(34,197,94,0.12);
+  color: #22c55e;
+  border-color: rgba(34,197,94,0.4);
+}
 
 .wod-desc {
   font-size: 16px;
@@ -478,10 +485,12 @@ body::before {
   <div class="card" id="wod-card">
     <div class="badge-row">
       <div class="badge hyrox" id="wod-badge"><span class="badge-icon" id="badge-icon"></span><span id="badge-text">HYROX</span></div>
-      <div class="wod-number" id="wod-number">#1 / 438</div>
+      <div class="badge-right">
+        <span class="wod-number" id="wod-number">#1 / 438</span>
+        <button class="copy-btn" id="copy-btn" onclick="copyWod()" aria-label="Copier le WOD"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span id="copy-label">Copier</span></button>
+      </div>
     </div>
     <div class="wod-content" id="wod-content">
-      <div class="wod-date" id="wod-date"></div>
       <div class="divider"></div>
       <div class="wod-desc" id="wod-desc"></div>
     </div>
@@ -514,6 +523,7 @@ let dailyMode = true;
 let noRun = false;
 let history = [];
 let currentIdx = -1;
+let currentWod = null;
 
 const RUN_PATTERN = /\b(run|running|treadmill)\b/i;
 
@@ -555,13 +565,7 @@ function pickRandom() {
   return [pool[idx], idx];
 }
 
-const JOURS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-
-function formatDate(d) {
-  const dt = new Date(+d.slice(0,4), +d.slice(4,6)-1, +d.slice(6,8));
-  return JOURS[dt.getDay()] + ' ' + d.slice(6,8) + ' ' + MOIS[+d.slice(4,6)-1] + ' ' + d.slice(0,4);
-}
 
 function spawnConfetti() {
   const container = document.getElementById('confetti');
@@ -616,14 +620,42 @@ function updateCard(wod, idx, pool) {
   badge.className = 'badge ' + wod.type.toLowerCase();
   
   document.getElementById('wod-number').textContent = '#' + (idx+1) + ' / ' + pool.length;
-  document.getElementById('wod-date').textContent = formatDate(wod.date);
   document.getElementById('wod-desc').textContent = wod.description.trim();
+  currentWod = wod;
   
   const hc = filter === 'all' ? WODS.filter(w=>w.type==='HYROX').length : (filter==='HYROX' ? pool.length : 0);
   const sc = filter === 'all' ? WODS.filter(w=>w.type==='SAVAGE').length : (filter==='SAVAGE' ? pool.length : 0);
   document.getElementById('stat-hyrox').textContent = WODS.filter(w=>w.type==='HYROX').length;
   document.getElementById('stat-savage').textContent = WODS.filter(w=>w.type==='SAVAGE').length;
   document.getElementById('stat-total').textContent = pool.length;
+}
+
+function copyWod() {
+  if (!currentWod) return;
+  const text = currentWod.type + '\n\n' + currentWod.description.trim();
+  const btn = document.getElementById('copy-btn');
+  const label = document.getElementById('copy-label');
+  const done = () => {
+    btn.classList.add('copied');
+    label.textContent = 'Copié !';
+    setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'Copier'; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(fallbackCopy.bind(null, text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) {}
+  document.body.removeChild(ta);
 }
 
 function addToHistory(wod) {
