@@ -457,6 +457,12 @@ body::before {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.history-empty {
+  font-size: 12px;
+  color: #444;
+  padding: 10px 14px;
+  margin-top: 6px;
+}
 </style>
 </head>
 <body>
@@ -479,6 +485,7 @@ body::before {
 
 <div class="toggle-row">
   <button class="toggle-btn" id="no-run-btn" onclick="toggleNoRun()">No Run</button>
+  <button class="toggle-btn" id="only-push-btn" onclick="toggleOnlyPush()">Push-ups</button>
 </div>
 
 <div class="card-container">
@@ -521,22 +528,34 @@ const WODS = [{"date": "20250110", "title": "HYROX", "description": "3 rounds fo
 let filter = 'all';
 let dailyMode = true;
 let noRun = false;
+let onlyPush = false;
 let history = [];
 let currentIdx = -1;
 let currentWod = null;
 
 const RUN_PATTERN = /\b(run|running|treadmill)\b/i;
+// Match real push-ups (push up, push-up, pushup, HSPU) but NOT
+// "sled push", "push press" or "push jerk".
+const PUSH_PATTERN = /\bhspu\b|push[-\s]?ups?\b/i;
 
 function getFiltered() {
   let pool = WODS;
   if (filter !== 'all') pool = pool.filter(w => w.type === filter);
   if (noRun) pool = pool.filter(w => !RUN_PATTERN.test(w.description));
+  if (onlyPush) pool = pool.filter(w => PUSH_PATTERN.test(w.description));
   return pool;
 }
 
 function toggleNoRun() {
   noRun = !noRun;
   document.getElementById('no-run-btn').classList.toggle('active', noRun);
+  const [wod, idx] = dailyMode ? pickDaily() : pickRandom();
+  if (wod) display(wod, idx, true);
+}
+
+function toggleOnlyPush() {
+  onlyPush = !onlyPush;
+  document.getElementById('only-push-btn').classList.toggle('active', onlyPush);
   const [wod, idx] = dailyMode ? pickDaily() : pickRandom();
   if (wod) display(wod, idx, true);
 }
@@ -659,14 +678,19 @@ function fallbackCopy(text, done) {
 }
 
 function addToHistory(wod) {
+  if (!wod) return;
   const desc = wod.description.trim().split('\n')[0].substring(0, 50);
-  history.unshift({ type: wod.type, desc: desc, date: wod.date });
-  if (history.length > 10) history.pop();
+  history.unshift({ type: wod.type, desc: desc });
+  if (history.length > 3) history.pop();
   renderHistory();
 }
 
 function renderHistory() {
   const list = document.getElementById('history-list');
+  if (!history.length) {
+    list.innerHTML = '<div class="history-empty">Aucun tirage précédent</div>';
+    return;
+  }
   list.innerHTML = history.map(h =>
     '<div class="history-item">' +
     '<div class="history-dot ' + h.type.toLowerCase() + '"></div>' +
@@ -687,7 +711,8 @@ function roll() {
   document.getElementById('btn-daily').classList.remove('active-mode');
   const [wod, idx] = pickRandom();
   if (wod) {
-    addToHistory(wod);
+    // Record the WOD we're swapping away from, so the last 3 are visible.
+    addToHistory(currentWod);
     display(wod, idx, true);
   }
 }
