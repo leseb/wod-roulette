@@ -438,10 +438,10 @@ body::before {
   overflow: hidden;
   transition: max-height 0.4s ease;
 }
-.history-list.open { max-height: 500px; }
+.history-list.open { max-height: 2000px; }
 .history-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 14px;
   background: #0e0e10;
@@ -454,16 +454,26 @@ body::before {
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+  margin-top: 6px;
 }
 .history-dot.hyrox { background: #ff6b35; }
 .history-dot.savage { background: #8b5cf6; }
 .history-dot.doubles { background: #14b8a6; }
 .history-text {
   font-size: 12px;
-  color: #555;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: #888;
+  white-space: pre-line;
+  line-height: 1.5;
+  flex: 1;
+}
+.history-type {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #aaa;
+  margin-bottom: 4px;
 }
 .history-empty {
   font-size: 12px;
@@ -690,24 +700,35 @@ function fallbackCopy(text, done) {
 
 function addToHistory(wod) {
   if (!wod) return;
-  const desc = wod.description.trim().split('\n')[0].substring(0, 50);
-  history.unshift({ type: wod.type, desc: desc });
+  history.unshift({ type: wod.type, desc: wod.description.trim() });
   if (history.length > 3) history.pop();
   renderHistory();
 }
 
 function renderHistory() {
   const list = document.getElementById('history-list');
+  list.innerHTML = '';
   if (!history.length) {
     list.innerHTML = '<div class="history-empty">Aucun tirage précédent</div>';
     return;
   }
-  list.innerHTML = history.map(h =>
-    '<div class="history-item">' +
-    '<div class="history-dot ' + h.type.toLowerCase() + '"></div>' +
-    '<div class="history-text">' + h.desc + '</div>' +
-    '</div>'
-  ).join('');
+  history.forEach(h => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    const dot = document.createElement('div');
+    dot.className = 'history-dot ' + h.type.toLowerCase();
+    const text = document.createElement('div');
+    text.className = 'history-text';
+    const label = document.createElement('span');
+    label.className = 'history-type';
+    label.textContent = h.type;
+    text.appendChild(label);
+    // description text preserves line breaks via CSS white-space: pre-line
+    text.appendChild(document.createTextNode(h.desc));
+    item.appendChild(dot);
+    item.appendChild(text);
+    list.appendChild(item);
+  });
 }
 
 function toggleHistory() {
