@@ -162,6 +162,8 @@ body::before {
 .toggle-row {
   display: flex;
   justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 20px;
   width: 100%;
   max-width: 420px;
@@ -185,6 +187,11 @@ body::before {
   background: rgba(239, 68, 68, 0.12);
   color: #ef4444;
   border-color: rgba(239, 68, 68, 0.4);
+}
+#back-safe-btn.active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.4);
 }
 
 .card-container {
@@ -505,6 +512,7 @@ body::before {
 <div class="toggle-row">
   <button class="toggle-btn" id="no-run-btn" onclick="toggleNoRun()">No Run</button>
   <button class="toggle-btn" id="only-push-btn" onclick="toggleOnlyPush()">Push-ups</button>
+  <button class="toggle-btn" id="back-safe-btn" onclick="toggleBackSafe()">Dos sensible</button>
 </div>
 
 <div class="card-container">
@@ -549,6 +557,7 @@ let filter = 'all';
 let dailyMode = true;
 let noRun = false;
 let onlyPush = false;
+let backSafe = false;
 let history = [];
 let currentIdx = -1;
 let currentWod = null;
@@ -557,12 +566,18 @@ const RUN_PATTERN = /\b(run|running|treadmill)\b/i;
 // Match real push-ups (push up, push-up, pushup, HSPU) but NOT
 // "sled push", "push press" or "push jerk".
 const PUSH_PATTERN = /\bhspu\b|push[-\s]?ups?\b/i;
+// "Dos sensible": exclure les WODs chargeant le rachis lombaire (hinge
+// chargé, compression axiale, flexion sous fatigue). Couvre les fautes
+// de frappe ("sanbag") et variantes ("sand bag"). Les mouvements plus
+// modérables (burpees, wall balls, box jumps, course, erg) restent.
+const BACK_PATTERN = /san(d)?\s?bag|\bsled\b|dead\s?lift|\brdl\b|devil|back\s?rack|\bsnatch(es)?\b|\bcleans?\b|\bswings?\b|\bt2b\b|toes?[-\s]?to[-\s]?bar/i;
 
 function getFiltered() {
   let pool = WODS;
   if (filter !== 'all') pool = pool.filter(w => w.type === filter);
   if (noRun) pool = pool.filter(w => !RUN_PATTERN.test(w.description));
   if (onlyPush) pool = pool.filter(w => PUSH_PATTERN.test(w.description));
+  if (backSafe) pool = pool.filter(w => !BACK_PATTERN.test(w.description));
   return pool;
 }
 
@@ -576,6 +591,13 @@ function toggleNoRun() {
 function toggleOnlyPush() {
   onlyPush = !onlyPush;
   document.getElementById('only-push-btn').classList.toggle('active', onlyPush);
+  const [wod, idx] = dailyMode ? pickDaily() : pickRandom();
+  if (wod) display(wod, idx, true);
+}
+
+function toggleBackSafe() {
+  backSafe = !backSafe;
+  document.getElementById('back-safe-btn').classList.toggle('active', backSafe);
   const [wod, idx] = dailyMode ? pickDaily() : pickRandom();
   if (wod) display(wod, idx, true);
 }
